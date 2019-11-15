@@ -1,0 +1,2 @@
+# seamless-chrome-extension
+ 
