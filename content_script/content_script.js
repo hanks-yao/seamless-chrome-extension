@@ -117,14 +117,13 @@ const fun = {
       }
     }
     console.log('queryContacts params: ',params);
-    const { data: { results = [] } } = await ufn.ajax(params);
 
     let counts = 0;
     let searchData;
     do{
       try {
-        const response = await ufn.ajax(params);
-        searchData = response.data.results;
+        const { data = {} } = await ufn.ajax(params);
+        searchData = data.results;
       } catch (e) {
         console.log('search error: ', e);
       }
