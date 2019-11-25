@@ -6,8 +6,7 @@ var ufn = {
 
     if (url.indexOf("://") > -1) {
         temp = url.split('/')[2];
-    }
-    else {
+    } else {
         temp = url.split('/')[0];
     }
 

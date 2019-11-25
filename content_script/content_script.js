@@ -132,8 +132,10 @@ const fun = {
     counts = 0;
 
     console.log('queryContacts results: ', searchData);
+    if (!searchData) {return [];}
 
     let res = [];
+    // match
     if (contact) {
       for (var i = 0, len = searchData.length; i < len; i++) {
         const current = searchData[i].name.toLowerCase();
@@ -144,8 +146,9 @@ const fun = {
           break;
         }
       }
+    // search
     } else {
-      res = searchData.slice(0, contactsLimit); // 若search模式，选取前contactsLimit个contact
+      res = Array.isArray(searchData) ? searchData.slice(0, contactsLimit) : []; // 若search模式，选取前contactsLimit个contact
     }
 
     return res;
@@ -337,7 +340,7 @@ const fun = {
 
     return {
       Company,
-      Website,
+      Domain: ufn.getUrlDomamin(Website),
       CompanyIndustry,
       CompanyLocation,
       CompanyStaffCount,
@@ -397,6 +400,14 @@ const fun = {
       return;
     }
 
+    this.setState({
+      type: 'progress',
+      param: {
+        current: 0,
+        total: data.length,
+      },
+    });
+
     for (let i = 0, len = data.length; i < len; i++) {
       const contacts = await this.queryContacts(data[i], query, header);
       console.log(contacts);
@@ -440,7 +451,6 @@ const fun = {
       if (requestInterval) {
         await ufn.delayXSeconds(requestInterval);
       }
-
     }
 
     console.log(this.result);
