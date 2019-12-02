@@ -66,6 +66,33 @@ button.bilin-close{-webkit-appearance: none;  padding: 0;  cursor: pointer;  bac
 .bilin-modal-footer .bilin-btn-group .bilin-btn + .bilin-btn{margin-left: -1px;}
 .bilin-modal-footer .bilin-btn-block + .bilin-btn-block{margin-left: 0;}
 .bilin-modal-scrollbar-measure{position: absolute;  top: -9999px;  width: 50px;  height: 50px;  overflow: scroll;}
+.bilin-radio,
+.bilin-checkbox {
+  position: relative;
+  display: inline-block;
+  /* display: block; */
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+.bilin-radio label,
+.bilin-checkbox label {
+  min-height: 20px;
+  padding-right: 20px;
+  margin-bottom: 0px;
+  font-weight: normal;
+  cursor: pointer;
+}
+.bilin-radio input[type="radio"],
+.bilin-radio-inline input[type="radio"],
+.bilin-checkbox input[type="checkbox"],
+.bilin-checkbox-inline input[type="checkbox"] {
+  position: absolute;
+  right: 0;
+  margin: 4px 4px 0 0;
+  line-height: normal;
+}
+
+
 .bilin-progress-wrap {
     margin: 16px 0 16px;
 	line-height: 1;

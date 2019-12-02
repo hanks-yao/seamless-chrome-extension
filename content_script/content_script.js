@@ -3,6 +3,7 @@ console.log('content_scritp loaded!');
 let globalContacts;
 let contactsLimit = 2;
 let requestInterval = 0;
+let scoreEnable = false;
 
 const fun = {
   requestLimit: 3,
@@ -17,18 +18,21 @@ const fun = {
       $('#bilin-progress  > .bilin-progress-info > .right-info').text(`-- / --`);
       $('#bilin-progress  > .bilin-progress > .bilin-progress-bar').css('width', '0%');
       $('#excel-file').prop('disabled', true);
+      $('#score-input').prop('disabled', true);
       $('#startBtn').prop('disabled', true);
 
     } else if (type === 'complete') {
 
       $('#bilin-message').empty().append('The search is completed and the file will be downloaded automatically!');
       $('#bilin-progress  > .bilin-progress').removeClass('active');
+      $('#score-input').prop('disabled', false);
       $('#excel-file').prop('disabled', false);
       $('#startBtn').prop('disabled', false);
 
     } else if (type === 'error') {
 
       $('#bilin-message').empty().append(param);
+      $('#score-input').prop('disabled', false);
       $('#excel-file').prop('disabled', false);
       $('#startBtn').prop('disabled', false);
 
@@ -100,6 +104,9 @@ const fun = {
 
     if (!company) {return;}
 
+    const companyArr =  company.split(',').map(val => val.trim());
+    const contactArr =  contact.split(',').map(val => val.trim());
+    const titleArr =  title.split(',').map(val => val.trim());
     const params = {
       "url": "https://api.seamless.ai/api/contact/search",
       "type": "POST",
@@ -107,9 +114,9 @@ const fun = {
       "query": query,
       "data": {
         "keywords": [],
-        "names": contact.split(',').map(val => val.trim()),
-        "titles": title.split(',').map(val => val.trim()),
-        "companies": company.split(',').map(val => val.trim()),
+        "names": contactArr,
+        "titles": titleArr,
+        "companies": companyArr,
         "type": "all",
         "fromPeopleSearch": true,
         "page": 0,
@@ -132,12 +139,12 @@ const fun = {
     counts = 0;
 
     console.log('queryContacts results: ', searchData);
-    if (!searchData) {return [];}
+    if (!Array.isArray(searchData)) {return [];}
 
     let res = [];
     // match
     if (contact) {
-      for (var i = 0, len = searchData.length; i < len; i++) {
+      for (let i = 0, len = searchData.length; i < len; i++) {
         const current = searchData[i].name.toLowerCase();
         const target = contact.toLowerCase();
 
@@ -148,7 +155,20 @@ const fun = {
       }
     // search
     } else {
-      res = Array.isArray(searchData) ? searchData.slice(0, contactsLimit) : []; // 若search模式，选取前contactsLimit个contact
+      if (scoreEnable) {
+        for (let i = 0, len = searchData.length; i < len; i++) {
+          // const titles = titleArr // ['ceo', 'president', 'vice president1', 'vice President 1Operations']
+          // const title = searchData[i].title; //'Vice President Operations'
+          const AnalyzeObj = new AnalyzeTitle(titleArr);
+          const { item, score } = AnalyzeObj.title_score(searchData[i].title);
+
+          searchData[i]['titleMatch'] = score;
+        }
+
+        searchData.sort((a, b) => (b.titleMatch - a.titleMatch)); // 将title score从大到小排序
+      }
+
+      res = searchData.slice(0, contactsLimit); //若search模式，选取前contactsLimit个contact
     }
 
     return res;
@@ -259,23 +279,23 @@ const fun = {
    * @param url 下载地址，也可以是一个blob对象，必选
    * @param saveName 保存文件名，可选
    */
-  openDownloadDialog: function (url, saveName)
-  {
-      if(typeof url === 'object' && url instanceof Blob)
-      {
-          url = URL.createObjectURL(url); // 创建blob地址
-      }
-      var aLink = document.createElement('a');
-      aLink.href = url;
-      aLink.download = saveName || ''; // HTML5新增的属性，指定保存文件名，可以不要后缀，注意，file:///模式下不会生效
-      var event;
-      if(window.MouseEvent) event = new MouseEvent('click');
-      else
-      {
-          event = document.createEvent('MouseEvents');
-          event.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-      }
-      aLink.dispatchEvent(event);
+  openDownloadDialog: function (url, saveName) {
+    if(typeof url === 'object' && url instanceof Blob) {
+      url = URL.createObjectURL(url); // 创建blob地址
+    }
+    var aLink = document.createElement('a');
+    aLink.href = url;
+    aLink.download = saveName || ''; // HTML5新增的属性，指定保存文件名，可以不要后缀，注意，file:///模式下不会生效
+
+    var event;
+    if(window.MouseEvent) {
+      event = new MouseEvent('click');
+    } else {
+      event = document.createEvent('MouseEvents');
+      event.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+    }
+
+    aLink.dispatchEvent(event);
   },
 
   jsonToExcelDownload: function(data) {
@@ -382,11 +402,11 @@ const fun = {
       return;
     }
 
-    if (contactsLimit < 0 || contactsLimit > 10) {
+    if (contactsLimit < 1 || contactsLimit > 10) {
       console.log('limit is invalid!');
       this.setState({
         type: 'error',
-        param: 'The limit is invalid! Please enter an integer from 0 to 10.',
+        param: 'The limit is invalid! Please enter an integer from 1 to 10.',
       });
       return;
     }
@@ -422,6 +442,8 @@ const fun = {
         if (contacts[j].researchedData) {
           this.result.push({
             ...data[i],
+            titleMatch: contacts[j].titleMatch,
+            // titleMatch: parseInt(contacts[j].titleMatch * 100, 10) + '%',
             reloadId: contacts[j].researchedData.id,
             researchedData: contacts[j].researchedData,
           });
@@ -430,6 +452,7 @@ const fun = {
 
           this.result.push({
             ...data[i],
+            titleMatch: contacts[j].titleMatch,
             reloadId: researchContact.id,
             researchedData: researchContact,
           });
@@ -477,16 +500,25 @@ $(document).ready(function() {
       </div>
       <div style="margin: 16px 0 8px">
         <label style="margin-right: 8px">③ </label>
-        <label>interval:
+        <label>Interval:
           <input type="number" id="interval-input" value=${requestInterval} placeholder="0~60" step="1" min="0" max="60">
         </label>
-        <label  style="margin-left: 8px">limit:
+        <label  style="margin-left: 8px">Limit:
           <input type="number" id="limit-input" value=${contactsLimit} placeholder="1~10" step="1" min="1" max="10">
           <span style="color: #b9bdbf">(limit is only used for searching!) </span>
         </label>
       </div>
       <div style="margin: 16px 0 8px">
         <label style="margin-right: 8px">④ </label>
+        <div class="bilin-checkbox">
+          <label>
+            <input type="checkbox" id="score-input">Title Score:
+          </label>
+        </div>
+        <span style="color: #b9bdbf">(only used for searching!) </span>
+      </div>
+      <div style="margin: 16px 0 8px">
+        <label style="margin-right: 8px">⑤ </label>
         <button type="button" class="bilin-btn bilin-btn-primary bilin-btn-sm" id="startBtn" disabled>Start</button>
       </div>
 
@@ -583,6 +615,11 @@ $(document).ready(function() {
   $('#limit-input').change(function(e) {
     const input = parseInt(e.target.value, 10);
     contactsLimit = input;
+  });
+
+  $('#score-input').change(function(e) {
+    // console.log($(this).prop('checked'));
+    scoreEnable = $(this).prop('checked');
   });
 
   $('#download-match').on('click', function(event) {

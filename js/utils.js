@@ -177,11 +177,17 @@ var ufn = {
         }
 
       })
-      .done(function(res) {
+      .done(function(res,textStatus) {
         resolve(res);
       })
-      .fail(function() {
-        reject('ajax error');
+      .fail(function(jqXHR, textStatus, errorThrown) {
+        console.log(jqXHR);
+        console.log(textStatus);
+        console.log(errorThrown);
+        reject({
+          code: jqXHR.status,
+          message: jqXHR.statusText
+        });
       });
     });
   },

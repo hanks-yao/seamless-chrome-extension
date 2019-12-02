@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.seamless.ai/*", "*://seamless.ai/*"],
-      "js": ["asset/jquery-2.0.3.js", "asset/xlsx.core.min.js", "content_script/template.js", "js/utils.js", "content_script/content_script.js"],
+      "js": ["asset/jquery-2.0.3.js", "asset/xlsx.core.min.js", "content_script/template.js", "js/utils.js", "js/AnalyzeTitle.js", "content_script/content_script.js"],
       "css": ["content_script/template.css"]
     }
   ],
