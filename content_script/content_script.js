@@ -431,34 +431,34 @@ const fun = {
     for (let i = 0, len = data.length; i < len; i++) {
       const contacts = await this.queryContacts(data[i], query, header);
       console.log(contacts);
+
       if (!contacts || contacts.length === 0) {
         this.result.push({
           ...data[i],
         });
-        continue;
-      }
+      } else {
+        for (let j = 0, len = contacts.length; j < len; j++) {
+          if (contacts[j].researchedData) {
+            this.result.push({
+              ...data[i],
+              titleMatch: contacts[j].titleMatch,
+              // titleMatch: parseInt(contacts[j].titleMatch * 100, 10) + '%',
+              reloadId: contacts[j].researchedData.id,
+              researchedData: contacts[j].researchedData,
+            });
+          } else {
+            const researchContact = await this.researchContacts(contacts[j], query, header);
 
-      for (let j = 0, len = contacts.length; j < len; j++) {
-        if (contacts[j].researchedData) {
-          this.result.push({
-            ...data[i],
-            titleMatch: contacts[j].titleMatch,
-            // titleMatch: parseInt(contacts[j].titleMatch * 100, 10) + '%',
-            reloadId: contacts[j].researchedData.id,
-            researchedData: contacts[j].researchedData,
-          });
-        } else {
-          const researchContact = await this.researchContacts(contacts[j], query, header);
+            this.result.push({
+              ...data[i],
+              titleMatch: contacts[j].titleMatch,
+              reloadId: researchContact.id,
+              researchedData: researchContact,
+            });
 
-          this.result.push({
-            ...data[i],
-            titleMatch: contacts[j].titleMatch,
-            reloadId: researchContact.id,
-            researchedData: researchContact,
-          });
-
-          if (requestInterval) {
-            await ufn.delayXSeconds(requestInterval);
+            if (requestInterval) {
+              await ufn.delayXSeconds(requestInterval);
+            }
           }
         }
       }
