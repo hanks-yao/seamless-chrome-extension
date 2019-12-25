@@ -1,9 +1,11 @@
 console.log('content_scritp loaded!');
 
 let globalContacts;
+let fileName;
 let contactsLimit = 2;
 let requestInterval = 0;
 let scoreEnable = false;
+let downloadBySelf = false;
 
 const fun = {
   requestLimit: 3,
@@ -19,13 +21,15 @@ const fun = {
       $('#bilin-progress  > .bilin-progress > .bilin-progress-bar').css('width', '0%');
       $('#excel-file').prop('disabled', true);
       $('#score-input').prop('disabled', true);
+      $('#download-by-self-input').prop('disabled', true);
       $('#startBtn').prop('disabled', true);
 
     } else if (type === 'complete') {
 
-      $('#bilin-message').empty().append('The search is completed and the file will be downloaded automatically!');
+      $('#bilin-message').empty().append(param);
       $('#bilin-progress  > .bilin-progress').removeClass('active');
       $('#score-input').prop('disabled', false);
+      $('#download-by-self-input').prop('disabled', false);
       $('#excel-file').prop('disabled', false);
       $('#startBtn').prop('disabled', false);
 
@@ -33,6 +37,7 @@ const fun = {
 
       $('#bilin-message').empty().append(param);
       $('#score-input').prop('disabled', false);
+      $('#download-by-self-input').prop('disabled', false);
       $('#excel-file').prop('disabled', false);
       $('#startBtn').prop('disabled', false);
 
@@ -248,6 +253,39 @@ const fun = {
     return reloadData || {};
   },
 
+  onceResearchContacts: async function(data, query, header) {
+    const keyMap = {
+      company: 'companyName',
+      name: 'contactName',
+    };
+    const newData = this.changeKey(data, keyMap);
+
+    const researchParams = {
+      "url": "https://api.seamless.ai/api/users/contacts/research",
+      "type": "POST",
+      "header": header,
+      "query": query,
+      "timeout": 0,
+      "data": {
+        isBatch: false,
+        isWaiting: false,
+        researchSource: "In App / Contact / Find / Single / searchPeople",
+        reloadNonCseContactOnResearchDone: "Email", // 请求触发的来源，可以是Email/Phone/NULL, 不影响结果
+        researchedAt: (new Date()).toISOString(), // (new Date()).toISOString() : "2019-11-04T01:34:05.558Z"
+        // companyName: "Koan Health"
+        // contactName: "DT Nguyen"
+        // picture: "https://static-exp1.licdn.com/sc/p/com.linkedin.public-profile-frontend%3Apublic-profile-frontend-static-content%2B0.2.249/f/%2Fpublic-profile-frontend%2Fartdeco%2Fstatic%2Fimages%2Fghost-images%2Fperson.svg"
+        // social: [{type: "linkedin", url: "https://www.linkedin.com/in/dt-nguyen-09a7a97"}]
+        // title: "Chairman & CEO"
+        ...newData,
+      }
+    };
+
+    ufn.ajax(researchParams).catch(e => {
+      console.log(e);
+    });
+  },
+
   // 将一个sheet转成最终的excel文件的blob对象，然后利用URL.createObjectURL下载
   sheet2blob: function (sheet, sheetName) {
       sheetName = sheetName || 'sheet1';
@@ -377,6 +415,25 @@ const fun = {
     };
   },
 
+  createTag: async function(name, query, header) {
+    const params = {
+      "url": "https://api.seamless.ai/api/users/tags",
+      "type": "POST",
+      "header": header,
+      "query": query,
+      "data": {
+        "defaultTag": name,
+      }
+    };
+
+
+    return await ufn.ajax(params);
+  },
+
+  handleFileName: function(name) {
+    return name.length > 20 ? name.slice(0, 20) + '...' : name;
+  },
+
   main: async function() {
     this.setState({type: 'start'});
 
@@ -428,6 +485,22 @@ const fun = {
       },
     });
 
+    // 创建新的list/tag
+    try {
+      const tagResult = await this.createTag(fileName, query, header);
+      if (!tagResult.success) {
+        throw tagResult.msg;
+      }
+    } catch (e) {
+      console.log('create tag error: ', e);
+      this.setState({
+        type: 'error',
+        param: e,
+      });
+
+      return;
+    }
+
     for (let i = 0, len = data.length; i < len; i++) {
       const contacts = await this.queryContacts(data[i], query, header);
       console.log(contacts);
@@ -438,27 +511,31 @@ const fun = {
         });
       } else {
         for (let j = 0, len = contacts.length; j < len; j++) {
-          if (contacts[j].researchedData) {
-            this.result.push({
-              ...data[i],
-              titleMatch: contacts[j].titleMatch,
-              // titleMatch: parseInt(contacts[j].titleMatch * 100, 10) + '%',
-              reloadId: contacts[j].researchedData.id,
-              researchedData: contacts[j].researchedData,
-            });
-          } else {
-            const researchContact = await this.researchContacts(contacts[j], query, header);
+          if (downloadBySelf) {
+            if (contacts[j].researchedData) {
+              this.result.push({
+                ...data[i],
+                titleMatch: contacts[j].titleMatch,
+                // titleMatch: parseInt(contacts[j].titleMatch * 100, 10) + '%',
+                reloadId: contacts[j].researchedData.id,
+                researchedData: contacts[j].researchedData,
+              });
+            } else {
+              const researchContact = await this.researchContacts(contacts[j], query, header);
 
-            this.result.push({
-              ...data[i],
-              titleMatch: contacts[j].titleMatch,
-              reloadId: researchContact.id,
-              researchedData: researchContact,
-            });
-
-            if (requestInterval) {
-              await ufn.delayXSeconds(requestInterval);
+              this.result.push({
+                ...data[i],
+                titleMatch: contacts[j].titleMatch,
+                reloadId: researchContact.id,
+                researchedData: researchContact,
+              });
             }
+          } else {
+            this.onceResearchContacts(contacts[j], query, header);
+          }
+
+          if (requestInterval) {
+            await ufn.delayXSeconds(requestInterval);
           }
         }
       }
@@ -477,8 +554,19 @@ const fun = {
     }
 
     console.log(this.result);
-    this.jsonToExcelDownload(this.result);
-    this.setState({type: 'complete'});
+
+    if (downloadBySelf) {
+      this.jsonToExcelDownload(this.result);
+      this.setState({
+        type: 'complete',
+        param: 'The search is completed and the file will be downloaded automatically!',
+      });
+    } else {
+      this.setState({
+        type: 'complete',
+        param: 'The search is completed and please go to My Contacts to download!',
+      });
+    }
   },
 };
 
@@ -519,6 +607,14 @@ $(document).ready(function() {
       </div>
       <div style="margin: 16px 0 8px">
         <label style="margin-right: 8px">⑤ </label>
+        <div class="bilin-checkbox">
+          <label>
+            <input type="checkbox" id="download-by-self-input">Download by Self:
+          </label>
+        </div>
+      </div>
+      <div style="margin: 16px 0 8px">
+        <label style="margin-right: 8px">⑥ </label>
         <button type="button" class="bilin-btn bilin-btn-primary bilin-btn-sm" id="startBtn" disabled>Start</button>
       </div>
 
@@ -600,6 +696,7 @@ $(document).ready(function() {
       console.log("contacts to search: ", sheetData);
       $('#startBtn').prop('disabled', false);
       globalContacts = sheetData;
+      fileName = fun.handleFileName(files[0].name) || 'default name';
     };
 
     // 以二进制方式打开文件
@@ -620,6 +717,10 @@ $(document).ready(function() {
   $('#score-input').change(function(e) {
     // console.log($(this).prop('checked'));
     scoreEnable = $(this).prop('checked');
+  });
+
+  $('#download-by-self-input').change(function(event) {
+    downloadBySelf = $(this).prop('checked');
   });
 
   $('#download-match').on('click', function(event) {

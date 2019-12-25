@@ -150,7 +150,7 @@ var ufn = {
     });
   },
   ajax: function(params) {
-    const {url, type, query, data, header = {}} = params;
+    const {url, type, query, data, header = {}, timeout = 20000} = params;
     let newUrl = url;
 
     if (type === 'POST' && query && Object.keys(query).length) {
@@ -161,7 +161,7 @@ var ufn = {
       $.ajax({
         url: newUrl,
         type: type,
-        timeout: 15000,
+        timeout: timeout,
         // dataType: 'json',
         data: JSON.stringify(data),
         // accepts: 'application/json',
@@ -181,13 +181,9 @@ var ufn = {
         resolve(res);
       })
       .fail(function(jqXHR, textStatus, errorThrown) {
-        console.log(jqXHR);
+        // console.log(jqXHR);
         console.log(textStatus);
-        console.log(errorThrown);
-        reject({
-          code: jqXHR.status,
-          message: jqXHR.statusText
-        });
+        reject(jqXHR.statusText);
       });
     });
   },
