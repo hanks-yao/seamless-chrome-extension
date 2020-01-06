@@ -150,7 +150,15 @@ var ufn = {
     });
   },
   ajax: function(params) {
-    const {url, type, query, data, header = {}, timeout = 20000} = params;
+    const {
+      url, 
+      type, 
+      query, 
+      data, 
+      header = {}, 
+      timeout = 20000,
+      callback,
+    } = params;
     let newUrl = url;
 
     if (type === 'POST' && query && Object.keys(query).length) {
@@ -181,9 +189,16 @@ var ufn = {
         resolve(res);
       })
       .fail(function(jqXHR, textStatus, errorThrown) {
-        // console.log(jqXHR);
+        console.log(jqXHR);
         console.log(textStatus);
-        reject(jqXHR.statusText);
+        console.log(errorThrown);
+        const { status, responseJSON = {} } = jqXHR;
+      
+        reject({
+          status,
+          success: responseJSON.success,
+          msg: responseJSON.msg
+        });
       });
     });
   },

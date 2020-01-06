@@ -10,11 +10,13 @@ let downloadBySelf = false;
 const fun = {
   requestLimit: 3,
   result: [],
+  stop: false,
 
   setState: function({type, param}) {
     if (type === 'start') {
 
       this.result = [];
+      this.stop = false;
       $('#bilin-message').empty();
       $('#bilin-progress  > .bilin-progress').addClass('active');
       $('#bilin-progress  > .bilin-progress-info > .right-info').text(`-- / --`);
@@ -34,8 +36,10 @@ const fun = {
       $('#startBtn').prop('disabled', false);
 
     } else if (type === 'error') {
+      const dom = `<span style="color: red">${param}</span>`;
 
-      $('#bilin-message').empty().append(param);
+      this.stop = true;
+      $('#bilin-message').empty().append(dom);
       $('#score-input').prop('disabled', false);
       $('#download-by-self-input').prop('disabled', false);
       $('#excel-file').prop('disabled', false);
@@ -138,6 +142,16 @@ const fun = {
         searchData = data.results;
       } catch (e) {
         console.log('search error: ', e);
+        const { status, success, msg } = e;
+        
+        if(!success && msg) {
+          this.setState({
+            type: 'error',
+            param: msg || 'Fail to search!',
+          });
+          
+          return;
+        }
       }
       counts += 1;
     }while(counts <= this.requestLimit && !searchData)
@@ -216,6 +230,16 @@ const fun = {
         researchData = response.data;
       } catch (e) {
         console.log('research error: ', e);
+        const { success, msg } = e;
+
+        if(!success && msg) {
+          this.setState({
+            type: 'error',
+            param: msg || 'Fail to research!',
+          });
+
+          return;
+        }
       }
 
       counts += 1;
@@ -244,6 +268,16 @@ const fun = {
         reloadData = response.data;
       } catch (e) {
         console.log('reload error: ', e);
+        const { success, msg } = e;
+        
+        if(!success && msg) {
+          this.setState({
+            type: 'error',
+            param: msg || 'Fail to reload!',
+          });
+
+          return;
+        }
       }
 
       counts += 1;
@@ -282,7 +316,14 @@ const fun = {
     };
 
     ufn.ajax(researchParams).catch(e => {
-      console.log(e);
+      const { success, msg } = e;
+
+      if (!success && msg) {
+        this.setState({
+          type: 'error',
+          param: msg || 'Fail to !',
+        });
+      }
     });
   },
 
@@ -493,9 +534,10 @@ const fun = {
       }
     } catch (e) {
       console.log('create tag error: ', e);
+      const { success, msg } = e;
       this.setState({
         type: 'error',
-        param: e,
+        param: msg || 'Fail to create list!',
       });
 
       return;
@@ -536,6 +578,8 @@ const fun = {
 
           if (requestInterval) {
             await ufn.delayXSeconds(requestInterval);
+          } else if (this.stop) {
+            return
           }
         }
       }
@@ -550,6 +594,8 @@ const fun = {
 
       if (requestInterval) {
         await ufn.delayXSeconds(requestInterval);
+      } else if (this.stop) {
+        return
       }
     }
 
